@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import random
-import json
+import json, os
 import io
 from datetime import datetime
 
@@ -153,4 +153,9 @@ def stahnout():
     )
 
 if __name__ == '__main__':
+    # Pro Render - port z prostředí
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+else:
+    # Pro lokální vývoj
     app.run(debug=True, port=5000)
