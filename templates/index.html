@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Vyhledávač Google</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a1a1a;
+            margin-top: 0;
+            font-size: 28px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        input {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 30px;
+            outline: none;
+        }
+        input:focus {
+            border-color: #007bff;
+        }
+        button {
+            padding: 15px 30px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+            color: #666;
+        }
+        .loading.active {
+            display: block;
+        }
+        .vysledek {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .vysledek:last-child {
+            border-bottom: none;
+        }
+        .title {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .title a {
+            color: #1a0dab;
+            text-decoration: none;
+        }
+        .title a:hover {
+            text-decoration: underline;
+        }
+        .url {
+            color: #006621;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .url a {
+            color: #006621;
+            text-decoration: none;
+        }
+        .url a:hover {
+            text-decoration: underline;
+        }
+        .popis {
+            color: #545454;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            color: #0d47a1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chyba {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        .pozice {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .download-btn:hover {
+            background: #218838;
+        }
+        .download-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Vyhledávač Google</h1>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Zadejte co hledáte..." value="">
+            <button onclick="search()">Hledat</button>
+        </div>
+
+        <div class="loading" id="loading">
+            ⏳ Vyhledávám... prosím čekejte
+        </div>
+
+        <div class="chyba" id="chyba"></div>
+
+        <div id="vysledky"></div>
+        
+        <div class="footer">
+            ⚡ Kliknutím na odkazy otevřete stránky v novém okně
+        </div>
+    </div>
+
+    <script>
+        let posledniVysledky = [];
+        let posledniDotaz = '';
+    
+        function search() {
+            let query = document.getElementById('searchInput').value.trim();
+            
+            if (!query) {
+                // Místo alertu zobrazíme chybovou zprávu přímo na stránce
+                document.getElementById('chyba').style.display = 'block';
+                document.getElementById('chyba').textContent = 'Zadejte hledaný výraz';
+                return;
+            }
+    
+            // Schováme chybovou zprávu pokud byla předtím
+            document.getElementById('chyba').style.display = 'none';
+            
+            // Ukážeme načítání
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('vysledky').innerHTML = '';
+    
+            // Zavoláme API
+            fetch(`/hledej?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Schováme načítání
+                    document.getElementById('loading').classList.remove('active');
+                    
+                    if (data.error) {
+                        document.getElementById('chyba').style.display = 'block';
+                        document.getElementById('chyba').textContent = data.error;
+                        return;
+                    }
+                    
+                    // Uložíme výsledky pro stažení
+                    posledniVysledky = data.vysledky;
+                    posledniDotaz = data.dotaz;
+                    
+                    // Zobrazíme výsledky
+                    if (data.vysledky && data.vysledky.length > 0) {
+                        let html = `
+                            <div class="info">
+                                <span>✅ Nalezeno ${data.pocet} výsledků pro "${data.dotaz}"</span>
+                                <button class="download-btn" onclick="downloadJSON()" id="downloadBtn">
+                                    📥 Stáhnout JSON
+                                </button>
+                            </div>
+                        `;
+                        
+                        data.vysledky.forEach(v => {
+                            html += `
+                                <div class="vysledek">
+                                    <div class="title">
+                                        <span class="pozice">${v.pozice}</span>
+                                        <a href="${v.url}" target="_blank" rel="noopener noreferrer">
+                                            ${v.title}
+                                        </a>
+                                    </div>
+                                    <div class="url">
+                                        <a href="${v.url}" target="_blank" rel="noopener noreferrer">
+                                            ${v.url}
+                                        </a>
+                                    </div>
+                                    <div class="popis">${v.popis}</div>
+                                </div>
+                            `;
+                        });
+                        
+                        document.getElementById('vysledky').innerHTML = html;
+                    } else {
+                        document.getElementById('vysledky').innerHTML = 
+                            '<div class="info">Žádné výsledky nenalezeny</div>';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('chyba').style.display = 'block';
+                    document.getElementById('chyba').textContent = 'Chyba při vyhledávání. Zkuste to znovu.';
+                    console.error('Chyba:', error);
+                });
+        }
+    
+        function downloadJSON() {
+            if (posledniVysledky.length === 0) {
+                document.getElementById('chyba').style.display = 'block';
+                document.getElementById('chyba').textContent = 'Žádné výsledky ke stažení';
+                return;
+            }
+            
+            // Připravíme data pro stažení
+            let dataStr = JSON.stringify(posledniVysledky);
+            let url = `/stahnout?data=${encodeURIComponent(dataStr)}&dotaz=${encodeURIComponent(posledniDotaz)}`;
+            
+            // Otevřeme URL pro stažení
+            window.location.href = url;
+        }
+    
+        // Při načtení stránky - pouze připravíme UI, nic nevyhledáváme
+        window.onload = function() {
+            // Vyčistíme případné staré výsledky
+            document.getElementById('vysledky').innerHTML = '';
+            document.getElementById('chyba').style.display = 'none';
+            document.getElementById('loading').classList.remove('active');
+        }
+    
+        // Enter pro vyhledávání
+        document.getElementById('searchInput').onkeypress = function(e) {
+            if (e.key === 'Enter') {
+                search();
+            }
+        }
+    </script>
+</body>
+</html>
